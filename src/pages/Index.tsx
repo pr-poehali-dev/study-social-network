@@ -28,6 +28,7 @@ interface StudySet {
 interface Friend {
   id: number;
   name: string;
+  username: string;
   avatar: string;
   studySets: number;
   status: 'online' | 'offline';
@@ -90,11 +91,11 @@ const Index = () => {
     },
   ]);
 
-  const [friends] = useState<Friend[]>([
-    { id: 1, name: 'Анна Иванова', avatar: '', studySets: 12, status: 'online' },
-    { id: 2, name: 'Петр Смирнов', avatar: '', studySets: 8, status: 'online' },
-    { id: 3, name: 'Мария Петрова', avatar: '', studySets: 15, status: 'offline' },
-    { id: 4, name: 'Иван Сидоров', avatar: '', studySets: 6, status: 'offline' },
+  const [friends, setFriends] = useState<Friend[]>([
+    { id: 1, name: 'Анна Иванова', username: '@anna_ivanova', avatar: '', studySets: 12, status: 'online' },
+    { id: 2, name: 'Петр Смирнов', username: '@petr_smirnov', avatar: '', studySets: 8, status: 'online' },
+    { id: 3, name: 'Мария Петрова', username: '@maria_petrova', avatar: '', studySets: 15, status: 'offline' },
+    { id: 4, name: 'Иван Сидоров', username: '@ivan_sidorov', avatar: '', studySets: 6, status: 'offline' },
   ]);
 
   const [comments, setComments] = useState<Comment[]>([
@@ -120,6 +121,15 @@ const Index = () => {
   const [currentStudySet, setCurrentStudySet] = useState<StudySet | null>(null);
   const [studyMode, setStudyMode] = useState(false);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [showCreateSet, setShowCreateSet] = useState(false);
+  const [newSetTitle, setNewSetTitle] = useState('');
+  const [newSetDescription, setNewSetDescription] = useState('');
+  const [newCards, setNewCards] = useState<FlashCard[]>([]);
+  const [newCardFront, setNewCardFront] = useState('');
+  const [newCardBack, setNewCardBack] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [filteredFriends, setFilteredFriends] = useState<Friend[]>(friends);
 
   const toggleCardFlip = (cardId: number) => {
     setFlippedCards((prev) => {
@@ -178,6 +188,61 @@ const Index = () => {
       setNewComment('');
     }
   };
+
+  const addCardToNewSet = () => {
+    if (newCardFront.trim() && newCardBack.trim()) {
+      const newCard: FlashCard = {
+        id: Date.now(),
+        front: newCardFront,
+        back: newCardBack,
+      };
+      setNewCards([...newCards, newCard]);
+      setNewCardFront('');
+      setNewCardBack('');
+    }
+  };
+
+  const removeCardFromNewSet = (cardId: number) => {
+    setNewCards(newCards.filter(card => card.id !== cardId));
+  };
+
+  const createNewSet = () => {
+    if (newSetTitle.trim() && newCards.length > 0) {
+      const newSet: StudySet = {
+        id: studySets.length + 1,
+        title: newSetTitle,
+        description: newSetDescription,
+        cards: newCards,
+        author: 'Вы',
+        studyCount: 0,
+        likes: 0,
+        isLiked: false,
+      };
+      setStudySets([newSet, ...studySets]);
+      setShowCreateSet(false);
+      setNewSetTitle('');
+      setNewSetDescription('');
+      setNewCards([]);
+    }
+  };
+
+  const handleUserSearch = (query: string) => {
+    setUserSearchQuery(query);
+    if (query.trim() === '') {
+      setFilteredFriends(friends);
+    } else {
+      const filtered = friends.filter(friend => 
+        friend.username.toLowerCase().includes(query.toLowerCase()) ||
+        friend.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredFriends(filtered);
+    }
+  };
+
+  const filteredStudySets = studySets.filter(set =>
+    set.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    set.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const userStats = {
     studySets: 24,
@@ -239,14 +304,28 @@ const Index = () => {
                 </h2>
                 <p className="text-muted-foreground">Изучайте новое каждый день</p>
               </div>
-              <div className="relative">
-                <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                <Input placeholder="Поиск занятий..." className="pl-10 w-80" />
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                  <Input 
+                    placeholder="Поиск занятий..." 
+                    className="pl-10 w-80" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  className="bg-gradient-to-r from-purple-600 to-pink-600"
+                  onClick={() => setShowCreateSet(true)}
+                >
+                  <Icon name="Plus" size={18} className="mr-2" />
+                  Создать
+                </Button>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {studySets.map((set) => (
+              {filteredStudySets.map((set) => (
                 <Card
                   key={set.id}
                   className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-2 border-purple-100 overflow-hidden group"
@@ -442,14 +521,25 @@ const Index = () => {
                 </h2>
                 <p className="text-muted-foreground">Учитесь вместе с друзьями</p>
               </div>
-              <Button className="bg-gradient-to-r from-purple-600 to-pink-600">
-                <Icon name="UserPlus" size={18} className="mr-2" />
-                Добавить друга
-              </Button>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Icon name="Search" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                  <Input 
+                    placeholder="Поиск по @username..." 
+                    className="pl-10 w-80" 
+                    value={userSearchQuery}
+                    onChange={(e) => handleUserSearch(e.target.value)}
+                  />
+                </div>
+                <Button className="bg-gradient-to-r from-purple-600 to-pink-600">
+                  <Icon name="UserPlus" size={18} className="mr-2" />
+                  Добавить
+                </Button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {friends.map((friend) => (
+              {filteredFriends.map((friend) => (
                 <Card key={friend.id} className="hover:shadow-lg transition-all border-2 border-purple-100">
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-4 mb-4">
@@ -467,7 +557,8 @@ const Index = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg">{friend.name}</h3>
-                        <p className="text-sm text-muted-foreground">{friend.studySets} наборов</p>
+                        <p className="text-sm text-purple-600">{friend.username}</p>
+                        <p className="text-xs text-muted-foreground">{friend.studySets} наборов</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -556,6 +647,134 @@ const Index = () => {
                       </span>
                     </div>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {showCreateSet && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto border-2 border-purple-200">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-2xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    Создать новый набор
+                  </CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => setShowCreateSet(false)}
+                  >
+                    <Icon name="X" size={20} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Название набора</label>
+                    <Input 
+                      placeholder="Например: Английский для начинающих"
+                      value={newSetTitle}
+                      onChange={(e) => setNewSetTitle(e.target.value)}
+                      className="border-2 border-purple-100 focus:border-purple-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Описание</label>
+                    <Textarea 
+                      placeholder="Краткое описание набора..."
+                      value={newSetDescription}
+                      onChange={(e) => setNewSetDescription(e.target.value)}
+                      className="border-2 border-purple-100 focus:border-purple-300 resize-none"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t-2 border-purple-100 pt-6">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Icon name="Layers" size={20} className="text-purple-600" />
+                    Карточки ({newCards.length})
+                  </h3>
+                  
+                  <div className="space-y-3 mb-4">
+                    {newCards.map((card, index) => (
+                      <div key={card.id} className="flex items-center gap-3 p-4 bg-purple-50 rounded-lg border-2 border-purple-100">
+                        <div className="flex-1 grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Вопрос</p>
+                            <p className="font-medium">{card.front}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Ответ</p>
+                            <p className="font-medium">{card.back}</p>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => removeCardFromNewSet(card.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Icon name="Trash2" size={18} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50/50 to-pink-50/50">
+                    <CardContent className="pt-6 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium mb-1 block">Вопрос</label>
+                          <Input 
+                            placeholder="Передняя сторона"
+                            value={newCardFront}
+                            onChange={(e) => setNewCardFront(e.target.value)}
+                            className="border-purple-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium mb-1 block">Ответ</label>
+                          <Input 
+                            placeholder="Задняя сторона"
+                            value={newCardBack}
+                            onChange={(e) => setNewCardBack(e.target.value)}
+                            className="border-purple-200"
+                          />
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={addCardToNewSet}
+                        variant="outline"
+                        className="w-full border-2 border-purple-200 hover:bg-purple-100"
+                        disabled={!newCardFront.trim() || !newCardBack.trim()}
+                      >
+                        <Icon name="Plus" size={18} className="mr-2" />
+                        Добавить карточку
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t-2 border-purple-100">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => setShowCreateSet(false)}
+                  >
+                    Отмена
+                  </Button>
+                  <Button 
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600"
+                    onClick={createNewSet}
+                    disabled={!newSetTitle.trim() || newCards.length === 0}
+                  >
+                    <Icon name="Check" size={18} className="mr-2" />
+                    Создать набор
+                  </Button>
                 </div>
               </CardContent>
             </Card>
